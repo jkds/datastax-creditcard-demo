@@ -70,14 +70,6 @@ public abstract class RunCQLFile {
 		session.execute(cql);
 	}
 
-	void sleep(int i) {
-		try {
-			Thread.sleep(i);
-		} catch (Exception e) {
-		}
-	}
-
-	
 	void shutdown() {
 		session.close();
 		cluster.close();

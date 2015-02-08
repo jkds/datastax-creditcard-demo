@@ -36,7 +36,7 @@ public class CreditCardDao {
 			+ " (credit_card_no, transaction_time, transaction_id, items, location, issuer, amount) values (?,?,?,?,?,?,?);";	
 	
 	private static final String INSERT_INTO_ISSUER = "insert into " + issuerTable +  
-				"(issuer, date, transaction_id, credit_card_no, transaction_time, items, location, amount) values (?,?,?,?,?,?,?)"; 	
+				"(issuer, date, transaction_id, credit_card_no, transaction_time, items, location, amount) values (?,?,?,?,?,?,?,?)";
 	
 	private static final String UPDATE_COUNTER = "update " + transactionCounterTable + " "
 			+ "set  total_for_minute = total_for_minute + 1 where date=? AND minute=?";
@@ -46,7 +46,7 @@ public class CreditCardDao {
 	
 	private static final String GET_ALL_CREDIT_CARDS = "select credit_card_no, balance_at, balance from " + transactionTable;
 	
-	private static final String GET_ALL_TRANSACTIONS_BY_TIME = "select amount from " + transactionTable + " where transaction_time > ?";
+	private static final String GET_ALL_TRANSACTIONS_BY_TIME = "select amount from " + transactionTable + " where transaction_time > ? allow filtering";
 	
 	private PreparedStatement insertTransactionStmt;
 	private PreparedStatement insertIssuerStmt;
@@ -61,7 +61,7 @@ public class CreditCardDao {
 				.addContactPoints(contactPoints)
 				.build();
 		
-		this.session = cluster.connect();
+		this.session = cluster.connect("datastax_creditcard_demo");
 
 		this.insertTransactionStmt = session.prepare(INSERT_INTO_TRANSACTION);
 		this.insertIssuerStmt = session.prepare(INSERT_INTO_ISSUER);
@@ -85,28 +85,28 @@ public class CreditCardDao {
 		int minute = dateTime.getMinuteOfDay();
 		String date = dateFormatter.format(dateTime.toDate());
 				
-		BatchStatement batch = new BatchStatement();
-		
+		BatchStatement batch = new BatchStatement(BatchStatement.Type.LOGGED);
 		batch.add(this.insertTransactionStmt.bind(transaction.getCreditCardNo(), transaction.getTransactionTime(), transaction.getTransactionId(),
 				transaction.getItems(), transaction.getLocation(), transaction.getIssuer(), transaction.getAmount()));
 		batch.add(this.insertIssuerStmt.bind(transaction.getIssuer(), date, transaction.getTransactionId(), transaction.getCreditCardNo(),
 				transaction.getTransactionTime(), transaction.getItems(), transaction.getLocation(), transaction.getAmount()));
-		batch.add(this.updateCounter.bind(date, minute));
+		//batch.add(this.updateCounter.bind(date, minute));
 		
 		session.execute(batch);
+        session.execute(updateCounter.bind(date, minute));
 	}
 
-	public boolean updateCreditCardWithBalance(){
-		//Get all credit cards 		
-		ResultSet resultSet = session.execute(GET_ALL_CREDIT_CARDS);		
-		List<CreditBalance> creditBalances = this.createCreditBalances(resultSet);
-		
-		for (CreditBalance creditBalance : creditBalances){
-			
-		}
-		
-		return true;
-	}
+//	public boolean updateCreditCardWithBalance(){
+//		//Get all credit cards
+//		ResultSet resultSet = session.execute(GET_ALL_CREDIT_CARDS);
+//		List<CreditBalance> creditBalances = this.createCreditBalances(resultSet);
+//
+//		for (CreditBalance creditBalance : creditBalances){
+//
+//		}
+//
+//		return true;
+//	}
 
 	private List<CreditBalance> createCreditBalances(ResultSet resultSet) {
 		
@@ -115,7 +115,6 @@ public class CreditCardDao {
 		
 		while (iterator.hasNext()){	
 			Row row = iterator.next();
-			
 			creditBalances.add(new CreditBalance(row.getString("credit_card_no"), row.getDate("balance_at"), row.getDouble("balance")));
 		}
 		return creditBalances;		

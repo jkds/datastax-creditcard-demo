@@ -5,4 +5,3 @@ truncate credit_card_transactions_by_issuer_date;
 truncate transaction_date_minute_counter;
 
 drop keyspace datastax_creditcard_demo;
-	
